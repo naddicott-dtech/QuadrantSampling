@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Quadrat Sampling Simulation</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 10px;
+      font-size: 14px;
+    }
+    h1 {
+      text-align: center;
+      margin: 10px 0;
+    }
+    #container {
+      position: relative;
+      width: 400px;
+      height: 400px;
+      border: 1px solid #333;
+      margin: 0 auto 10px auto; /* Slight margin below, center horizontally */
+      background-color: #eef;
+    }
+    #grid {
+      display: block;
+    }
+    /* Quadrat: same size as 4 grid boxes (2×2 at 50px each = 100×100) */
+    #quadrat {
+      position: absolute;
+      width: 100px;
+      height: 100px;
+      border: 2px dashed red;
+      background-color: rgba(255, 0, 0, 0.2);
+      top: 150px;  /* Default position near the center */
+      left: 150px;
+      cursor: pointer;
+    }
+    #controls {
+      text-align: center;
+      margin-bottom: 10px;
+    }
+    #controls button {
+      margin: 0 5px;
+      padding: 8px 12px;
+      font-size: 0.9em;
+    }
+    #results {
+      max-width: 400px;
+      margin: 0 auto;
+      border-top: 1px solid #ccc;
+      padding-top: 10px;
+    }
+    #results p {
+      margin: 8px 0;
+    }
+    #userEstimate {
+      width: 60px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Quadrat Sampling Simulation</h1>
+
+  <!-- Brief Explanation -->
+  <p style="text-align:center; max-width: 600px; margin: 0 auto;">
+    <strong>How it works:</strong> Click anywhere inside the box below to move the red quadrat (sample area). Then click <em>Take Sample</em> to see how many points fall inside that quadrat. Collect multiple samples to get an average count, and use that to estimate the total population. You can reveal the actual distribution of points (blue) with <em>Reveal Population</em>. Finally, compare your estimate with the true population size.
+  </p>
+
+  <p style="text-align:center;">
+    To estimate the total population, use the formula:
+    <br>
+    <strong>Estimated Population = (Average Count) × (Total Area / Quadrat Area)</strong>
+  </p>
+
+  <div id="container">
+    <canvas id="grid" width="400" height="400"></canvas>
+    <div id="quadrat"></div>
+  </div>
+
+  <div id="controls">
+    <button id="sampleBtn">Take Sample</button>
+    <button id="resetBtn">Reset Simulation</button>
+    <button id="revealBtn">Reveal Population</button>
+  </div>
+
+  <div id="results">
+    <p>Latest Sample Count: <span id="sampleCount">0</span></p>
+    <p>All Samples: <span id="samplesList"></span></p>
+    <p>Average Count: <span id="avgCount">0</span></p>
+    <p>
+      Enter your estimated population:
+      <input type="number" id="userEstimate">
+      <button id="checkEstimate">Check Your Answer</button>
+      <button id="revealAnswerBtn">Reveal Answer</button>
+    </p>
+    <p id="feedback"></p>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("grid");
+    const ctx = canvas.getContext("2d");
+    const container = document.getElementById("container");
+    const quadrat = document.getElementById("quadrat");
+    const sampleBtn = document.getElementById("sampleBtn");
+    const resetBtn = document.getElementById("resetBtn");
+    const revealBtn = document.getElementById("revealBtn");
+    const sampleCountSpan = document.getElementById("sampleCount");
+    const samplesListSpan = document.getElementById("samplesList");
+    const avgCountSpan = document.getElementById("avgCount");
+    const userEstimateInput = document.getElementById("userEstimate");
+    const checkEstimateBtn = document.getElementById("checkEstimate");
+    const revealAnswerBtn = document.getElementById("revealAnswerBtn");
+    const feedback = document.getElementById("feedback");
+
+    const canvasWidth = canvas.width;
+    const canvasHeight = canvas.height;
+    const quadratWidth = quadrat.offsetWidth;
+    const quadratHeight = quadrat.offsetHeight;
+
+    // Randomize the true population size between 150 and 250
+    const truePopulationSize = Math.floor(Math.random() * 101) + 150;
+
+    let populationPoints = [];
+    let samples = [];
+    let revealPopulation = false;
+
+    // Generate a random population of points
+    function generatePopulation() {
+      populationPoints = [];
+      for (let i = 0; i < truePopulationSize; i++) {
+        let x = Math.random() * canvasWidth;
+        let y = Math.random() * canvasHeight;
+        populationPoints.push({ x, y });
+      }
+    }
+
+    // Draw a simple grid on the canvas
+    function drawBackgroundGrid() {
+      const spacing = 50; // distance between grid lines
+      ctx.strokeStyle = "#ccc";
+      ctx.lineWidth = 1;
+
+      // Vertical lines
+      for (let x = 0; x <= canvasWidth; x += spacing) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, canvasHeight);
+        ctx.stroke();
+      }
+      // Horizontal lines
+      for (let y = 0; y <= canvasHeight; y += spacing) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(canvasWidth, y);
+        ctx.stroke();
+      }
+    }
+
+    // Redraw canvas (grid + population if revealed)
+    function drawGrid() {
+      ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+      drawBackgroundGrid();
+
+      if (revealPopulation) {
+        ctx.fillStyle = "blue";
+        populationPoints.forEach(p => {
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, 3, 0, 2 * Math.PI);
+          ctx.fill();
+        });
+      }
+    }
+
+    // Move quadrat to wherever the user clicks (within container)
+    container.addEventListener("click", function(event) {
+      // Ignore clicks on buttons/inputs
+      const targetId = event.target.id;
+      if (
+        targetId === "sampleBtn" ||
+        targetId === "resetBtn" ||
+        targetId === "revealBtn" ||
+        targetId === "userEstimate" ||
+        targetId === "checkEstimate" ||
+        targetId === "revealAnswerBtn"
+      ) {
+        return;
+      }
+
+      let containerRect = container.getBoundingClientRect();
+      let newLeft = event.clientX - containerRect.left - quadratWidth / 2;
+      let newTop = event.clientY - containerRect.top - quadratHeight / 2;
+
+      // Keep quadrat in bounds
+      newLeft = Math.max(0, Math.min(newLeft, canvasWidth - quadratWidth));
+      newTop = Math.max(0, Math.min(newTop, canvasHeight - quadratHeight));
+
+      quadrat.style.left = newLeft + "px";
+      quadrat.style.top = newTop + "px";
+    });
+
+    // Take a sample of how many points fall within the quadrat
+    sampleBtn.addEventListener("click", function() {
+      const rect = quadrat.getBoundingClientRect();
+      const containerRect = container.getBoundingClientRect();
+      let qLeft = rect.left - containerRect.left;
+      let qTop = rect.top - containerRect.top;
+
+      let count = populationPoints.filter(p =>
+        p.x >= qLeft && p.x <= qLeft + quadratWidth &&
+        p.y >= qTop && p.y <= qTop + quadratHeight
+      ).length;
+
+      samples.push(count);
+      updateResults();
+    });
+
+    // Reset simulation (reloads the page to randomize population size)
+    resetBtn.addEventListener("click", function() {
+      location.reload();
+    });
+
+    // Reveal or hide population on the canvas
+    revealBtn.addEventListener("click", function() {
+      revealPopulation = !revealPopulation;
+      revealBtn.textContent = revealPopulation ? "Hide Population" : "Reveal Population";
+      drawGrid();
+    });
+
+    // Update the results display
+    function updateResults() {
+      let sum = samples.reduce((a, b) => a + b, 0);
+      let avg = samples.length ? sum / samples.length : 0;
+      sampleCountSpan.textContent = samples[samples.length - 1] || 0;
+      samplesListSpan.textContent = samples.join(", ");
+      avgCountSpan.textContent = avg.toFixed(2);
+    }
+
+    // Check user estimate vs. true population
+    checkEstimateBtn.addEventListener("click", function() {
+      const userValue = parseInt(userEstimateInput.value);
+      if (isNaN(userValue)) {
+        feedback.textContent = "Please enter a valid number.";
+      } else if (userValue < truePopulationSize) {
+        feedback.textContent = "Your estimate is too low.";
+      } else if (userValue > truePopulationSize) {
+        feedback.textContent = "Your estimate is too high.";
+      } else {
+        feedback.textContent = "Exactly right! Great job!";
+      }
+    });
+
+    // Reveal the exact population
+    revealAnswerBtn.addEventListener("click", function() {
+      feedback.textContent = `The actual population is ${truePopulationSize}.`;
+    });
+
+    // Initial setup
+    generatePopulation();
+    drawGrid();
+  </script>
+</body>
+</html>
