@@ -18,7 +18,7 @@
       width: 400px;
       height: 400px;
       border: 1px solid #333;
-      margin: 0 auto 10px auto; /* Slight margin below, center horizontally */
+      margin: 0 auto 10px auto;
       background-color: #eef;
     }
     #grid {
@@ -31,7 +31,7 @@
       height: 100px;
       border: 2px dashed red;
       background-color: rgba(255, 0, 0, 0.2);
-      top: 150px;  /* Default position near the center */
+      top: 150px;
       left: 150px;
       cursor: pointer;
     }
@@ -117,20 +117,24 @@
     const quadratWidth = quadrat.offsetWidth;
     const quadratHeight = quadrat.offsetHeight;
 
-    // Randomize the true population size between 150 and 250
-    const truePopulationSize = Math.floor(Math.random() * 101) + 150;
+    // Randomize the true population size between 120 and 260
+    const truePopulationSize = Math.floor(Math.random() * 141) + 120;
 
     let populationPoints = [];
     let samples = [];
     let revealPopulation = false;
+    let animationId;
 
-    // Generate a random population of points
+    // Generate a random population of points with a random velocity for each point
     function generatePopulation() {
       populationPoints = [];
+      const speedFactor = 0.5; // max speed in either direction
       for (let i = 0; i < truePopulationSize; i++) {
         let x = Math.random() * canvasWidth;
         let y = Math.random() * canvasHeight;
-        populationPoints.push({ x, y });
+        let dx = (Math.random() - 0.5) * speedFactor * 2; // range: -speedFactor to speedFactor
+        let dy = (Math.random() - 0.5) * speedFactor * 2;
+        populationPoints.push({ x, y, dx, dy });
       }
     }
 
@@ -171,9 +175,41 @@
       }
     }
 
+    // Update positions of points for animation, bouncing off edges
+    function updatePositions() {
+      populationPoints.forEach(p => {
+        p.x += p.dx;
+        p.y += p.dy;
+        // Bounce off the horizontal edges
+        if (p.x < 0) {
+          p.x = 0;
+          p.dx = -p.dx;
+        } else if (p.x > canvasWidth) {
+          p.x = canvasWidth;
+          p.dx = -p.dx;
+        }
+        // Bounce off the vertical edges
+        if (p.y < 0) {
+          p.y = 0;
+          p.dy = -p.dy;
+        } else if (p.y > canvasHeight) {
+          p.y = canvasHeight;
+          p.dy = -p.dy;
+        }
+      });
+    }
+
+    // Animation loop for moving population points when revealed
+    function animate() {
+      updatePositions();
+      drawGrid();
+      if (revealPopulation) {
+        animationId = requestAnimationFrame(animate);
+      }
+    }
+
     // Move quadrat to wherever the user clicks (within container)
     container.addEventListener("click", function(event) {
-      // Ignore clicks on buttons/inputs
       const targetId = event.target.id;
       if (
         targetId === "sampleBtn" ||
@@ -223,7 +259,14 @@
     revealBtn.addEventListener("click", function() {
       revealPopulation = !revealPopulation;
       revealBtn.textContent = revealPopulation ? "Hide Population" : "Reveal Population";
-      drawGrid();
+      if (revealPopulation) {
+        // Start the animation loop so that points move
+        animationId = requestAnimationFrame(animate);
+      } else {
+        // Stop the animation loop and redraw static grid
+        cancelAnimationFrame(animationId);
+        drawGrid();
+      }
     });
 
     // Update the results display
