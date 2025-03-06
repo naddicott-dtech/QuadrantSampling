@@ -127,10 +127,10 @@
     let revealPopulation = false;
     let animationId;
 
-    // Generate a random population of points with a random velocity for each point
+    // Generate a random population of points with a slower random velocity
     function generatePopulation() {
       populationPoints = [];
-      const speedFactor = 0.5; // max speed in either direction
+      const speedFactor = 0.2; // Reduced speed for relatively immobile species
       for (let i = 0; i < truePopulationSize; i++) {
         let x = Math.random() * canvasWidth;
         let y = Math.random() * canvasHeight;
