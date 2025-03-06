@@ -69,7 +69,9 @@
   <p style="text-align:center;">
     To estimate the total population, use the formula:
     <br>
-    <strong>Estimated Population = (Average Count) × (Total Area / Quadrat Area)</strong>
+    <strong>Estimated Population = (Average Count) × (Total Squares / Quadrat Squares)</strong> 
+    <br>
+    (Here, Total Squares = 64 and Quadrat Squares = 4)
   </p>
 
   <div id="container">
@@ -132,7 +134,7 @@
       for (let i = 0; i < truePopulationSize; i++) {
         let x = Math.random() * canvasWidth;
         let y = Math.random() * canvasHeight;
-        let dx = (Math.random() - 0.5) * speedFactor * 2; // range: -speedFactor to speedFactor
+        let dx = (Math.random() - 0.5) * speedFactor * 2;
         let dy = (Math.random() - 0.5) * speedFactor * 2;
         populationPoints.push({ x, y, dx, dy });
       }
@@ -180,7 +182,6 @@
       populationPoints.forEach(p => {
         p.x += p.dx;
         p.y += p.dy;
-        // Bounce off the horizontal edges
         if (p.x < 0) {
           p.x = 0;
           p.dx = -p.dx;
@@ -188,7 +189,6 @@
           p.x = canvasWidth;
           p.dx = -p.dx;
         }
-        // Bounce off the vertical edges
         if (p.y < 0) {
           p.y = 0;
           p.dy = -p.dy;
@@ -226,7 +226,6 @@
       let newLeft = event.clientX - containerRect.left - quadratWidth / 2;
       let newTop = event.clientY - containerRect.top - quadratHeight / 2;
 
-      // Keep quadrat in bounds
       newLeft = Math.max(0, Math.min(newLeft, canvasWidth - quadratWidth));
       newTop = Math.max(0, Math.min(newTop, canvasHeight - quadratHeight));
 
@@ -260,10 +259,8 @@
       revealPopulation = !revealPopulation;
       revealBtn.textContent = revealPopulation ? "Hide Population" : "Reveal Population";
       if (revealPopulation) {
-        // Start the animation loop so that points move
         animationId = requestAnimationFrame(animate);
       } else {
-        // Stop the animation loop and redraw static grid
         cancelAnimationFrame(animationId);
         drawGrid();
       }
@@ -278,17 +275,34 @@
       avgCountSpan.textContent = avg.toFixed(2);
     }
 
-    // Check user estimate vs. true population
+    // Check if the estimation formula was applied correctly:
+    // Estimated Population = (Average Count) * (64 total squares / 4 squares in quadrat)
+    // Compare to the user's guess ignoring decimals.
     checkEstimateBtn.addEventListener("click", function() {
       const userValue = parseInt(userEstimateInput.value);
       if (isNaN(userValue)) {
         feedback.textContent = "Please enter a valid number.";
-      } else if (userValue < truePopulationSize) {
-        feedback.textContent = "Your estimate is too low.";
-      } else if (userValue > truePopulationSize) {
-        feedback.textContent = "Your estimate is too high.";
+        return;
+      }
+      
+      let sum = samples.reduce((a, b) => a + b, 0);
+      let avg = samples.length ? sum / samples.length : 0;
+      let computedEstimate = Math.floor(avg * 16); // 64/4 = 16
+      
+      if (userValue === computedEstimate) {
+        if (computedEstimate < truePopulationSize) {
+          feedback.textContent = "Correct calculation. Your estimate is below the actual population.";
+        } else if (computedEstimate > truePopulationSize) {
+          feedback.textContent = "Correct calculation. Your estimate is above the actual population.";
+        } else {
+          feedback.textContent = "Correct calculation. Your estimate exactly matches the actual population.";
+        }
       } else {
-        feedback.textContent = "Exactly right! Great job!";
+        if (userValue < computedEstimate) {
+          feedback.textContent = "Incorrect calculation. Your guess is too low.";
+        } else {
+          feedback.textContent = "Incorrect calculation. Your guess is too high.";
+        }
       }
     });
 
